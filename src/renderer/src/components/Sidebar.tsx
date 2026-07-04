@@ -1,6 +1,7 @@
 import { useBrowser, type SidebarMode } from '../store/browser'
 import { IconClose } from './Icons'
 import ChatPanel from './ChatPanel'
+import AgentsPanel from './AgentsPanel'
 import AnalyzePanel from './AnalyzePanel'
 import PromptPanel from './PromptPanel'
 import ComposePanel from './ComposePanel'
@@ -9,6 +10,7 @@ import LibraryPanel from './LibraryPanel'
 
 const MODES: { key: SidebarMode; label: string }[] = [
   { key: 'chat', label: 'Chat' },
+  { key: 'agents', label: 'Agents' },
   { key: 'analyze', label: 'Analyze' },
   { key: 'prompts', label: 'Prompts' },
   { key: 'compose', label: 'Compose' },
@@ -30,12 +32,12 @@ export default function Sidebar() {
       <div className="flex h-full w-[404px] flex-col overflow-hidden rounded-[12px] bg-porcelain-50 shadow-[0_2px_18px_rgba(33,33,29,0.08),0_0_0_1px_rgba(33,33,29,0.06)]">
         {/* Header — mode tabs */}
         <div className="hairline flex h-12 shrink-0 items-center justify-between border-b pr-3 pl-5">
-          <div className="flex h-full items-stretch gap-3.5">
+          <div className="flex h-full items-stretch gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {MODES.map((m) => (
               <button
                 key={m.key}
                 onClick={() => setSidebarMode(m.key)}
-                className={`relative text-[10px] tracking-[0.12em] uppercase transition-colors duration-300 ${
+                className={`relative shrink-0 text-[10px] tracking-[0.12em] uppercase transition-colors duration-300 ${
                   sidebarMode === m.key ? 'text-ink-900' : 'text-ink-400 hover:text-ink-700'
                 }`}
               >
@@ -50,13 +52,14 @@ export default function Sidebar() {
           </div>
           <button
             onClick={toggleSidebar}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-ink-400 transition-colors hover:text-ink-900"
+            className="ml-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-ink-400 transition-colors hover:text-ink-900"
           >
             <IconClose />
           </button>
         </div>
 
         {sidebarMode === 'chat' && <ChatPanel />}
+        {sidebarMode === 'agents' && <AgentsPanel />}
         {sidebarMode === 'analyze' && <AnalyzePanel />}
         {sidebarMode === 'prompts' && <PromptPanel />}
         {sidebarMode === 'compose' && <ComposePanel />}

@@ -7,6 +7,7 @@ import { registerStartPage } from './startpage'
 import { initBlocker } from './blocker'
 import { startWatcher } from './watcher'
 import { startMissions } from './missions'
+import { startAgents } from './ai-engine/agent-run'
 import { startAutoUpdate } from './updater'
 import { installUaHardening } from './stealth'
 import * as store from './db/store'
@@ -84,6 +85,7 @@ app.whenReady().then(() => {
   createWindow()
   startWatcher(() => BrowserWindow.getAllWindows()[0] ?? null)
   startMissions(() => BrowserWindow.getAllWindows()[0] ?? null)
+  startAgents(() => BrowserWindow.getAllWindows()[0] ?? null)
   startAutoUpdate()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

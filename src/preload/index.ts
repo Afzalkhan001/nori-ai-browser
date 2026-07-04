@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import {
   IPC,
+  type Agent,
+  type AgentSchedule,
+  type AgentStepEvt,
   type AnalyzeChunkEvt,
   type ApprovalRequestEvt,
   type AnalyzeDoneEvt,
@@ -104,6 +107,20 @@ const api: NoriApi = {
     markSeen: (id: string) => ipcRenderer.invoke(IPC.MissionMarkSeen, id),
     runNow: (id: string) => ipcRenderer.invoke(IPC.MissionRunNow, id),
     onUpdated: on<void>(IPC.MissionUpdated)
+  },
+  agents: {
+    list: () => ipcRenderer.invoke(IPC.AgentList),
+    create: (name: string, goal: string, schedule: AgentSchedule, autopilot: boolean) =>
+      ipcRenderer.invoke(IPC.AgentCreate, name, goal, schedule, autopilot),
+    update: (id: string, patch: Partial<Agent>) => ipcRenderer.invoke(IPC.AgentUpdate, id, patch),
+    remove: (id: string) => ipcRenderer.invoke(IPC.AgentRemove, id),
+    runNow: (id: string) => ipcRenderer.invoke(IPC.AgentRunNow, id),
+    stopRun: (id: string) => ipcRenderer.invoke(IPC.AgentStopRun, id),
+    markSeen: (id: string) => ipcRenderer.invoke(IPC.AgentMarkSeen, id),
+    dismissPending: (agentId: string, pendingId: string) =>
+      ipcRenderer.invoke(IPC.AgentDismissPending, agentId, pendingId),
+    onUpdated: on<void>(IPC.AgentUpdated),
+    onStep: on<AgentStepEvt>(IPC.AgentStep)
   },
   recall: {
     status: () => ipcRenderer.invoke(IPC.RecallStatus),

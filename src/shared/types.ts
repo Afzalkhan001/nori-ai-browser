@@ -118,6 +118,55 @@ export interface Mission {
   running?: boolean
 }
 
+// ---------- Agents (autonomous, ACTING) ----------
+
+export type AgentSchedule = 'manual' | 'hourly' | 'daily'
+
+/** One line in an agent run's live/step timeline. */
+export interface AgentRunStep {
+  ts: number
+  label: string
+}
+
+/** A queued committing action the agent wanted to take but held for approval. */
+export interface AgentPendingAction {
+  id: string
+  ts: number
+  description: string
+  url: string
+}
+
+/** The outcome of one agent run. */
+export interface AgentRunLog {
+  ts: number
+  ok: boolean
+  summary: string
+  steps: string[]
+  actionsTaken: string[]
+  pending: AgentPendingAction[]
+  costUsd: number
+}
+
+export interface Agent {
+  id: string
+  name: string
+  goal: string
+  schedule: AgentSchedule
+  /** When true the agent may take committing actions (post/submit/buy) unattended. */
+  autopilot: boolean
+  enabled: boolean
+  createdAt: number
+  lastRunAt: number
+  running?: boolean
+  log: AgentRunLog[]
+  unread: number
+}
+
+export interface AgentStepEvt {
+  agentId: string
+  label: string
+}
+
 export type XrayVerdict = 'supported' | 'disputed' | 'unverified'
 
 export interface XrayClaimEvt {
@@ -234,6 +283,14 @@ export const IPC = {
   MissionRemove: 'mission:remove',
   MissionMarkSeen: 'mission:markSeen',
   MissionRunNow: 'mission:runNow',
+  AgentList: 'agent:list',
+  AgentCreate: 'agent:create',
+  AgentUpdate: 'agent:update',
+  AgentRemove: 'agent:remove',
+  AgentRunNow: 'agent:runNow',
+  AgentStopRun: 'agent:stopRun',
+  AgentMarkSeen: 'agent:markSeen',
+  AgentDismissPending: 'agent:dismissPending',
   RecallToggle: 'recall:toggle',
   RecallStatus: 'recall:status',
   XrayRun: 'xray:run',
@@ -265,6 +322,8 @@ export const IPC = {
   WatchUpdated: 'watch:updated',
   ApprovalRequest: 'chat:approvalRequest',
   MissionUpdated: 'mission:updated',
+  AgentUpdated: 'agent:updated',
+  AgentStep: 'agent:step',
   XrayClaim: 'xray:claim',
   XrayDone: 'xray:done',
   XrayError: 'xray:error'
@@ -342,6 +401,18 @@ export interface NoriApi {
     markSeen: (id: string) => Promise<void>
     runNow: (id: string) => Promise<void>
     onUpdated: (cb: () => void) => () => void
+  }
+  agents: {
+    list: () => Promise<Agent[]>
+    create: (name: string, goal: string, schedule: AgentSchedule, autopilot: boolean) => Promise<Agent>
+    update: (id: string, patch: Partial<Agent>) => Promise<void>
+    remove: (id: string) => Promise<void>
+    runNow: (id: string) => Promise<void>
+    stopRun: (id: string) => Promise<void>
+    markSeen: (id: string) => Promise<void>
+    dismissPending: (agentId: string, pendingId: string) => Promise<void>
+    onUpdated: (cb: () => void) => () => void
+    onStep: (cb: (s: AgentStepEvt) => void) => () => void
   }
   recall: {
     status: () => Promise<{ enabled: boolean; pages: number }>

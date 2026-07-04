@@ -11,6 +11,8 @@ import { exportCsv, runExtract, runExtractAuto } from './ai-engine/extract'
 import * as blocker from './blocker'
 import * as recall from './ai-engine/recall'
 import { runMission } from './missions'
+import { runAgent, stopAgentRun } from './ai-engine/agent-run'
+import type { Agent, AgentSchedule } from '@shared/types'
 import { runXray } from './ai-engine/xray'
 import * as store from './db/store'
 
@@ -108,6 +110,30 @@ export function registerIpc(win: BrowserWindow, tabs: TabManager): void {
   ipcMain.handle(IPC.MissionRunNow, async (_e, id: string) => {
     await runMission(id)
     if (!win.isDestroyed()) win.webContents.send(IPC.MissionUpdated)
+  })
+  // ----- Agents (autonomous, acting) -----
+  ipcMain.handle(IPC.AgentList, () => store.listAgents())
+  ipcMain.handle(
+    IPC.AgentCreate,
+    (_e, name: string, goal: string, schedule: AgentSchedule, autopilot: boolean) =>
+      store.addAgent(name, goal, schedule, autopilot)
+  )
+  ipcMain.handle(IPC.AgentUpdate, (_e, id: string, patch: Partial<Agent>) => {
+    store.updateAgent(id, patch)
+    if (!win.isDestroyed()) win.webContents.send(IPC.AgentUpdated)
+  })
+  ipcMain.handle(IPC.AgentRemove, (_e, id: string) => {
+    store.removeAgent(id)
+    if (!win.isDestroyed()) win.webContents.send(IPC.AgentUpdated)
+  })
+  ipcMain.handle(IPC.AgentRunNow, (_e, id: string) => {
+    void runAgent(id) // fire-and-forget; UI updates via AgentUpdated/AgentStep events
+  })
+  ipcMain.handle(IPC.AgentStopRun, (_e, id: string) => stopAgentRun(id))
+  ipcMain.handle(IPC.AgentMarkSeen, (_e, id: string) => store.markAgentSeen(id))
+  ipcMain.handle(IPC.AgentDismissPending, (_e, agentId: string, pendingId: string) => {
+    store.dismissAgentPending(agentId, pendingId)
+    if (!win.isDestroyed()) win.webContents.send(IPC.AgentUpdated)
   })
   ipcMain.handle(IPC.RecallStatus, () => ({ enabled: recall.isEnabled(), pages: recall.recallCount() }))
   ipcMain.handle(IPC.RecallToggle, () => recall.toggle())

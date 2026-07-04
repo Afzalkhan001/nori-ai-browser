@@ -3,7 +3,17 @@ import { mkdirSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { atomicWrite, loadJson } from './fsafe'
-import type { Artifact, ChatMessage, CostSummary, Mission, MissionLogEntry, Playbook } from '@shared/types'
+import type {
+  Agent,
+  AgentRunLog,
+  AgentSchedule,
+  Artifact,
+  ChatMessage,
+  CostSummary,
+  Mission,
+  MissionLogEntry,
+  Playbook
+} from '@shared/types'
 
 /**
  * Local persistence. v0 uses a JSON file in userData behind a narrow,
@@ -37,6 +47,7 @@ interface StoreShape {
   artifacts: Artifact[]
   playbooks: Playbook[]
   missions: Mission[]
+  agents: Agent[]
 }
 
 let data: StoreShape | null = null
@@ -57,6 +68,7 @@ function load(): StoreShape {
     data.artifacts ??= []
     data.playbooks ??= []
     data.missions ??= []
+    data.agents ??= []
     for (const w of data.watches) {
       w.seenUrls ??= []
       w.unread ??= 0
@@ -70,7 +82,8 @@ function load(): StoreShape {
       watches: [],
       artifacts: [],
       playbooks: [],
-      missions: []
+      missions: [],
+      agents: []
     }
   }
   return data
@@ -254,6 +267,74 @@ export function appendMissionLog(id: string, entry: MissionLogEntry, newUrls: st
 export function markMissionSeen(id: string): void {
   const m = load().missions.find((x) => x.id === id)
   if (m) m.unread = 0
+  save()
+}
+
+// ----- Agents (autonomous, acting) -----
+
+export function listAgents(): Agent[] {
+  return load().agents
+}
+
+export function addAgent(
+  name: string,
+  goal: string,
+  schedule: AgentSchedule,
+  autopilot: boolean
+): Agent {
+  const a: Agent = {
+    id: randomUUID(),
+    name: name.trim() || goal.trim().slice(0, 40) || 'Agent',
+    goal: goal.trim(),
+    schedule,
+    autopilot,
+    enabled: true,
+    createdAt: Date.now(),
+    lastRunAt: 0,
+    running: false,
+    log: [],
+    unread: 0
+  }
+  load().agents.unshift(a)
+  save()
+  return a
+}
+
+export function updateAgent(id: string, patch: Partial<Agent>): void {
+  const a = load().agents.find((x) => x.id === id)
+  if (a) Object.assign(a, patch)
+  save()
+}
+
+export function removeAgent(id: string): void {
+  const s = load()
+  s.agents = s.agents.filter((a) => a.id !== id)
+  save()
+}
+
+export function appendAgentLog(id: string, entry: AgentRunLog): void {
+  const a = load().agents.find((x) => x.id === id)
+  if (!a) return
+  a.log.unshift(entry)
+  if (a.log.length > 40) a.log.length = 40
+  a.lastRunAt = Date.now()
+  a.running = false
+  // Unread counts new findings + anything queued for approval.
+  a.unread = Math.min(a.unread + 1 + entry.pending.length, 99)
+  save()
+}
+
+export function markAgentSeen(id: string): void {
+  const a = load().agents.find((x) => x.id === id)
+  if (a) a.unread = 0
+  save()
+}
+
+/** Remove one queued pending action from an agent's most recent run(s). */
+export function dismissAgentPending(agentId: string, pendingId: string): void {
+  const a = load().agents.find((x) => x.id === agentId)
+  if (!a) return
+  for (const run of a.log) run.pending = run.pending.filter((p) => p.id !== pendingId)
   save()
 }
 

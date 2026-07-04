@@ -1,7 +1,14 @@
 import { create } from 'zustand'
 import type { BrowserState, TabState } from '@shared/types'
 
-export type SidebarMode = 'chat' | 'analyze' | 'prompts' | 'compose' | 'extract' | 'library'
+export type SidebarMode =
+  | 'chat'
+  | 'agents'
+  | 'analyze'
+  | 'prompts'
+  | 'compose'
+  | 'extract'
+  | 'library'
 
 interface BrowserStore extends BrowserState {
   sidebarOpen: boolean
