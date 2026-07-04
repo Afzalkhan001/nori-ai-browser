@@ -76,14 +76,18 @@ window.nori.ai.onChunk(({ chatId, messageId, delta }) => {
   }))
 })
 
-window.nori.ai.onDone(({ chatId, messageId, costUsd }) => {
+window.nori.ai.onDone(({ chatId, messageId, costUsd, content }) => {
   useChat.setState((s) => ({
     streaming: { ...s.streaming, [chatId]: false },
     steps: { ...s.steps, [chatId]: [] },
     approval: { ...s.approval, [chatId]: null },
     threads: {
       ...s.threads,
-      [chatId]: (s.threads[chatId] ?? []).map((m) => (m.id === messageId ? { ...m, costUsd } : m))
+      [chatId]: (s.threads[chatId] ?? []).map((m) =>
+        // Replace the streamed accumulation with the true final text — long agent
+        // runs stream progress notes that aren't part of the final answer.
+        m.id === messageId ? { ...m, costUsd, content: content || m.content } : m
+      )
     }
   }))
 })

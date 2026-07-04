@@ -536,7 +536,8 @@ export async function sendMessage(
           messageId: assistantMsg.id,
           inputTokens: totalIn,
           outputTokens: totalOut,
-          costUsd: usd
+          costUsd: usd,
+          content: finalText
         })
       }
     } catch (err) {

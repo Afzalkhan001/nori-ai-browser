@@ -55,6 +55,9 @@ export interface ChatDone {
   inputTokens: number
   outputTokens: number
   costUsd: number
+  /** Final message text — replaces the streamed accumulation (nudged batch runs
+   *  stream intermediate progress notes that are NOT part of the final answer). */
+  content: string
 }
 
 export interface ChatError {
