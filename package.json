@@ -1,6 +1,6 @@
 {
   "name": "nori",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nori — the AI-native productivity browser",
   "main": "./out/main/index.js",
   "author": "Afzal Khan",
@@ -66,7 +66,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png"
@@ -83,7 +85,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64", "x64"]
+          "arch": [
+            "arm64",
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png",
@@ -93,7 +98,9 @@
       "title": "Nori ${version}"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "build/icon.png",
       "category": "Network"
     }
