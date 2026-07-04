@@ -7,10 +7,17 @@ import { registerStartPage } from './startpage'
 import { initBlocker } from './blocker'
 import { startWatcher } from './watcher'
 import { startMissions } from './missions'
+import { startAutoUpdate } from './updater'
 import * as store from './db/store'
 import * as recall from './ai-engine/recall'
+import { setApiKey } from './ai-engine/openai'
 
 loadEnv()
+
+// A key saved via the settings UI (userData) takes precedence over .env — this is
+// how installed copies (no .env) get their key. Loaded once at startup.
+const storedKey = store.getSetting('openaiApiKey')
+if (storedKey) setApiKey(storedKey)
 
 // 24x7 hardening: a stray exception or unhandled rejection anywhere in main must
 // never take the whole browser down — log it and keep running.
@@ -75,6 +82,7 @@ app.whenReady().then(() => {
   createWindow()
   startWatcher(() => BrowserWindow.getAllWindows()[0] ?? null)
   startMissions(() => BrowserWindow.getAllWindows()[0] ?? null)
+  startAutoUpdate()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

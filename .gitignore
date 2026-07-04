@@ -6,3 +6,6 @@ dist/
 .DS_Store
 *.log
 *.tsbuildinfo
+release/
+build/icon.ico
+build/icon.icns

@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain, shell } from 'electron'
 import { IPC, type WebAreaBounds } from '@shared/types'
 import type { TabManager } from './tabs'
-import { hasKey } from './ai-engine/openai'
+import { hasKey, setApiKey } from './ai-engine/openai'
 import { resolveApproval, sendMessage } from './ai-engine/chat'
 import { readerExtract, scrapePage, snapshotToContext } from './ai-engine/scrape'
 import { getFacts, synthesize } from './ai-engine/analyze'
@@ -17,6 +17,12 @@ import * as store from './db/store'
 export function registerIpc(win: BrowserWindow, tabs: TabManager): void {
   // ----- AI -----
   ipcMain.handle(IPC.AiGetStatus, () => ({ hasKey: hasKey() }))
+  ipcMain.handle(IPC.AiSetKey, (_e, key: string) => {
+    const k = String(key ?? '').trim()
+    store.setSetting('openaiApiKey', k) // persisted (userData); survives restarts
+    setApiKey(k)
+    return { hasKey: hasKey() }
+  })
   ipcMain.handle(IPC.ChatSend, async (_e, chatId: string, text: string) => {
     // chatId == tabId: ground the chat in that tab's live page.
     const wc = tabs.getWebContents(chatId)

@@ -2,15 +2,29 @@ import OpenAI from 'openai'
 import { MODELS, type ModelTier } from './cost'
 
 let client: OpenAI | null = null
+// A key entered at runtime (settings UI) takes precedence over the .env file, so
+// installed copies with no .env still work. Held in memory; persistence is the
+// caller's job (store settings). Setting it re-inits the client.
+let runtimeKey: string | null = null
+
+function resolveKey(): string | undefined {
+  return runtimeKey || process.env.OPENAI_API_KEY
+}
+
+export function setApiKey(key: string): void {
+  runtimeKey = key.trim() || null
+  client = null // force re-creation with the new key on next call
+}
 
 export function hasKey(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY)
+  return Boolean(resolveKey())
 }
 
 function getClient(): OpenAI {
   if (!client) {
-    const apiKey = process.env.OPENAI_API_KEY
-    if (!apiKey) throw new Error('OPENAI_API_KEY is not set. Add it to .env in the project root.')
+    const apiKey = resolveKey()
+    if (!apiKey)
+      throw new Error('No OpenAI API key set. Add one in Nori’s settings, or put OPENAI_API_KEY in a .env file.')
     client = new OpenAI({ apiKey })
   }
   return client

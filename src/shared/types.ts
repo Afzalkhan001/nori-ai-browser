@@ -274,6 +274,7 @@ export const IPC = {
 export interface NoriApi {
   ai: {
     getStatus: () => Promise<AiStatus>
+    setKey: (key: string) => Promise<AiStatus>
     sendMessage: (chatId: string, text: string) => Promise<{ chatId: string; messageId: string }>
     getMessages: (chatId: string) => Promise<ChatMessage[]>
     clearChat: (chatId: string) => Promise<void>

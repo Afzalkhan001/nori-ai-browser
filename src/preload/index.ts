@@ -27,6 +27,7 @@ function on<T>(channel: string) {
 const api: NoriApi = {
   ai: {
     getStatus: () => ipcRenderer.invoke(IPC.AiGetStatus),
+    setKey: (key: string) => ipcRenderer.invoke(IPC.AiSetKey, key),
     sendMessage: (chatId: string, text: string) =>
       ipcRenderer.invoke(IPC.ChatSend, chatId, text),
     getMessages: (chatId: string) => ipcRenderer.invoke(IPC.ChatGetMessages, chatId),
