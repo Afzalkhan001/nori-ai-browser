@@ -14,6 +14,9 @@ permissions:
 jobs:
   release:
     strategy:
+      # Don't let one platform's failure cancel the other — the Windows installer
+      # should still publish even if the macOS build has a hiccup.
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -39,3 +42,6 @@ jobs:
         run: npm run build && npx electron-builder --${{ matrix.platform }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Unsigned builds: skip macOS signing-identity auto-discovery, which can
+          # hard-fail the mac job on CI (no certificate present).
+          CSC_IDENTITY_AUTO_DISCOVERY: false

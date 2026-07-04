@@ -3,6 +3,7 @@ import type { BrowserState, TabState, WebAreaBounds } from '@shared/types'
 import { IPC } from '@shared/types'
 import * as blocker from './blocker'
 import { capturePage } from './ai-engine/recall'
+import { injectMainWorldStealth } from './stealth'
 
 /**
  * YouTube ad neutralizer — network blocking can't stop YT video ads (they're
@@ -106,6 +107,7 @@ export class TabManager {
     const tab: Tab = { id, view, faviconUrl: null }
     this.tabs.push(tab)
     this.wireEvents(tab)
+    injectMainWorldStealth(view.webContents) // arm client-side OAuth disguise before first load
     view.webContents.loadURL(url).catch(() => {}) // load failures surface in the tab itself
     this.activateTab(id)
     return id
@@ -275,6 +277,15 @@ export class TabManager {
       }
       this.createTab(url)
       return { action: 'deny' }
+    })
+    // Arm the OAuth disguise on auth popups the instant they're created, before
+    // they navigate to the provider's sign-in page.
+    wc.on('did-create-window', (childWin) => {
+      try {
+        injectMainWorldStealth(childWin.webContents)
+      } catch {
+        /* non-fatal */
+      }
     })
   }
 

@@ -1,4 +1,4 @@
-import { app, session } from 'electron'
+import { app, session, type WebContents } from 'electron'
 
 /**
  * Make Nori look like the plain Chrome it actually is, so identity providers
@@ -56,4 +56,69 @@ export function installUaHardening(): void {
     }
     cb({ requestHeaders: headers })
   })
+}
+
+// The main-world JS Google/Microsoft run to sniff out automation & non-Chrome
+// engines. Server-clean headers aren't enough — these client-side signals must
+// also look like real Chrome. Injected at document-start (before page scripts).
+const MAIN_WORLD_STEALTH = `(() => {
+  try {
+    // 1) navigator.webdriver must be false/undefined (the #1 automation tell).
+    Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+  } catch (e) {}
+  try {
+    // 2) userAgentData brands must not mention Electron.
+    const brands = [
+      { brand: 'Chromium', version: '${chromeMajor}' },
+      { brand: 'Google Chrome', version: '${chromeMajor}' },
+      { brand: 'Not?A_Brand', version: '24' }
+    ];
+    const full = [
+      { brand: 'Chromium', version: '${chromeFull}' },
+      { brand: 'Google Chrome', version: '${chromeFull}' },
+      { brand: 'Not?A_Brand', version: '24.0.0.0' }
+    ];
+    const uaData = {
+      brands, mobile: false, platform: 'Windows',
+      getHighEntropyValues: () => Promise.resolve({
+        architecture: 'x86', bitness: '64', brands, fullVersionList: full,
+        mobile: false, model: '', platform: 'Windows', platformVersion: '15.0.0',
+        uaFullVersion: '${chromeFull}', wow64: false
+      }),
+      toJSON: () => ({ brands, mobile: false, platform: 'Windows' })
+    };
+    Object.defineProperty(navigator, 'userAgentData', { get: () => uaData, configurable: true });
+  } catch (e) {}
+  try {
+    // 3) Real Chrome exposes window.chrome; Electron doesn't.
+    if (!window.chrome) window.chrome = {};
+    if (!window.chrome.runtime) window.chrome.runtime = {};
+  } catch (e) {}
+})()`
+
+const stealthInjected = new WeakSet<WebContents>()
+
+/**
+ * Inject the client-side disguise into a webContents at document-start via CDP
+ * (Page.addScriptToEvaluateOnNewDocument — the only reliable main-world,
+ * before-page-scripts hook without a custom preload). Once set, it applies to
+ * every future document in that webContents (so it survives the OAuth flow's
+ * redirects). Call for each browsing tab AND each auth popup. Best-effort: any
+ * failure is silent and never blocks navigation.
+ */
+export function injectMainWorldStealth(wc: WebContents): void {
+  if (!wc || wc.isDestroyed() || stealthInjected.has(wc)) return
+  try {
+    wc.debugger.attach('1.3')
+  } catch (err) {
+    // Automation may already own this debugger — that's fine, reuse it.
+    if (!String(err).includes('already attached')) return
+  }
+  stealthInjected.add(wc)
+  wc.debugger
+    .sendCommand('Page.addScriptToEvaluateOnNewDocument', { source: MAIN_WORLD_STEALTH })
+    .then(() => console.log('[nori-stealth] main-world disguise armed on wc', wc.id))
+    .catch(() => {
+      /* non-fatal */
+    })
 }
