@@ -8,6 +8,7 @@ import { initBlocker } from './blocker'
 import { startWatcher } from './watcher'
 import { startMissions } from './missions'
 import { startAutoUpdate } from './updater'
+import { installUaHardening } from './stealth'
 import * as store from './db/store'
 import * as recall from './ai-engine/recall'
 import { setApiKey } from './ai-engine/openai'
@@ -79,6 +80,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerStartPage()
   initBlocker()
+  installUaHardening() // present as plain Chrome to OAuth providers (client-hint headers)
   createWindow()
   startWatcher(() => BrowserWindow.getAllWindows()[0] ?? null)
   startMissions(() => BrowserWindow.getAllWindows()[0] ?? null)
