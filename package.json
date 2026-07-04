@@ -59,6 +59,9 @@
       "owner": "Afzalkhan001",
       "repo": "nori-ai-browser"
     },
+    "releaseInfo": {
+      "releaseNotes": "Nori 0.1.1\n\nWhat's fixed\n• Google / OAuth sign-in — resolved the \"This browser or app may not be secure\" wall. Nori now presents as plain Chrome (User-Agent client hints normalized), so Google, Microsoft, Apple and GitHub logins work.\n\nInstalling on Windows\nThe app is not code-signed yet, so Windows SmartScreen shows a blue \"Windows protected your PC\" prompt. This is expected for indie apps — click More info → Run anyway. On macOS, right-click the app → Open → Open.\n\nFirst run\nPaste your OpenAI API key when Nori asks. It's stored locally on your device and never leaves it except to call OpenAI. Get a key at https://platform.openai.com/api-keys\n\nUpdates install automatically from here on."
+    },
     "win": {
       "target": [
         {
