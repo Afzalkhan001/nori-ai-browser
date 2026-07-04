@@ -369,6 +369,21 @@ https://www.google.com/maps/search/... Returns the loaded page's url and title.`
         required: ['seconds']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_skill',
+      description: `Invoke a saved SKILL by name — a reusable, user-taught procedure. Returns its step-by-step instructions with your parameter values filled in; then carry out those steps with your normal tools (navigate/click/fill/etc.). Only use skills listed in the SAVED SKILLS section of your instructions. Pass any required params as a JSON object.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'The exact skill name to invoke' },
+          params: { type: 'object', description: 'Parameter name → value map for this run' }
+        },
+        required: ['name']
+      }
+    }
   }
 ]
 
@@ -412,6 +427,8 @@ export function stepLabel(name: string, args: Record<string, unknown>): string {
       return 'Scrolling the page…'
     case 'wait':
       return 'Waiting a moment…'
+    case 'run_skill':
+      return `Using skill “${String(args.name ?? '').slice(0, 40)}”…`
     default:
       return 'Working…'
   }
@@ -1505,6 +1522,25 @@ export async function executeTool(
         const secs = Math.max(1, Math.min(10, Number(args.seconds) || 2))
         await pause(secs * 1000)
         return JSON.stringify({ ok: true, waited: secs })
+      }
+      case 'run_skill': {
+        const wanted = String(args.name ?? '').trim().toLowerCase()
+        const skill = store.listSkills().find((s) => s.name.trim().toLowerCase() === wanted)
+        if (!skill) {
+          return JSON.stringify({
+            ok: false,
+            error: `No saved skill named "${args.name}". Only use skills listed in your SAVED SKILLS section.`
+          })
+        }
+        const params = (args.params ?? {}) as Record<string, unknown>
+        let procedure = skill.procedure
+        for (const p of skill.params) procedure = procedure.replaceAll(`{${p.name}}`, String(params[p.name] ?? ''))
+        return JSON.stringify({
+          ok: true,
+          skill: skill.name,
+          instructions: procedure,
+          note: 'Carry out these steps NOW using your normal tools (navigate/read_page/click/fill/submit). Committing actions still respect Autopilot.'
+        })
       }
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` })

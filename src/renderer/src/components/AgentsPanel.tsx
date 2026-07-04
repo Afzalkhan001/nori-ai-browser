@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Agent, AgentSchedule } from '@shared/types'
+import SkillsView from './SkillsView'
 
 const EXAMPLES = [
   'Every morning, find new remote ML-engineer jobs and draft applications for me',
@@ -12,6 +13,7 @@ export default function AgentsPanel() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [expanded, setExpanded] = useState<string | null>(null)
   const [steps, setSteps] = useState<Record<string, string>>({})
+  const [view, setView] = useState<'agents' | 'skills'>('agents')
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
@@ -59,14 +61,39 @@ export default function AgentsPanel() {
                 }`}
           </p>
         </div>
-        <button
-          onClick={() => setAdding(!adding)}
-          className="rounded-lg bg-moss-700 px-3 py-1.5 text-[11px] text-porcelain-50 transition-all duration-200 hover:bg-moss-600 active:scale-[0.96]"
-        >
-          {adding ? 'Cancel' : '+ New agent'}
-        </button>
+        {view === 'agents' && (
+          <button
+            onClick={() => setAdding(!adding)}
+            className="rounded-lg bg-moss-700 px-3 py-1.5 text-[11px] text-porcelain-50 transition-all duration-200 hover:bg-moss-600 active:scale-[0.96]"
+          >
+            {adding ? 'Cancel' : '+ New agent'}
+          </button>
+        )}
       </div>
 
+      {/* Agents / Skills toggle */}
+      <div className="flex shrink-0 items-center gap-4 px-7 pb-2">
+        {(['agents', 'skills'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`relative text-[10px] tracking-[0.12em] uppercase transition-colors duration-300 ${
+              view === v ? 'text-ink-900' : 'text-ink-400 hover:text-ink-700'
+            }`}
+          >
+            {v}
+            <span
+              className={`absolute inset-x-0 -bottom-1 h-px bg-moss-600 transition-transform duration-300 ${
+                view === v ? 'scale-x-100' : 'scale-x-0'
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+
+      {view === 'skills' && <SkillsView />}
+
+      {view === 'agents' && (
       <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-6">
         {/* Create form */}
         {adding && (
@@ -309,6 +336,7 @@ export default function AgentsPanel() {
           )
         })}
       </div>
+      )}
     </div>
   )
 }

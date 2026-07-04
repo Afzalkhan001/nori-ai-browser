@@ -167,6 +167,41 @@ export interface AgentStepEvt {
   label: string
 }
 
+// ---------- Skills (teachable, reusable automations) ----------
+
+export interface SkillParam {
+  name: string
+  label: string
+}
+
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  /** The procedure in plain English; may contain {param} placeholders. */
+  procedure: string
+  params: SkillParam[]
+  /** When true a direct run may take committing actions; otherwise they're held. */
+  autopilot: boolean
+  createdAt: number
+  lastRunAt: number
+  runCount: number
+}
+
+/** Result of running a skill directly (returned to the caller). */
+export interface SkillRunResult {
+  ok: boolean
+  summary: string
+  actionsTaken: string[]
+  pending: AgentPendingAction[]
+  costUsd: number
+}
+
+export interface SkillStepEvt {
+  skillId: string
+  label: string
+}
+
 export type XrayVerdict = 'supported' | 'disputed' | 'unverified'
 
 export interface XrayClaimEvt {
@@ -291,6 +326,11 @@ export const IPC = {
   AgentStopRun: 'agent:stopRun',
   AgentMarkSeen: 'agent:markSeen',
   AgentDismissPending: 'agent:dismissPending',
+  SkillList: 'skill:list',
+  SkillCreate: 'skill:create',
+  SkillUpdate: 'skill:update',
+  SkillRemove: 'skill:remove',
+  SkillRun: 'skill:run',
   RecallToggle: 'recall:toggle',
   RecallStatus: 'recall:status',
   XrayRun: 'xray:run',
@@ -324,6 +364,8 @@ export const IPC = {
   MissionUpdated: 'mission:updated',
   AgentUpdated: 'agent:updated',
   AgentStep: 'agent:step',
+  SkillUpdated: 'skill:updated',
+  SkillStep: 'skill:step',
   XrayClaim: 'xray:claim',
   XrayDone: 'xray:done',
   XrayError: 'xray:error'
@@ -413,6 +455,21 @@ export interface NoriApi {
     dismissPending: (agentId: string, pendingId: string) => Promise<void>
     onUpdated: (cb: () => void) => () => void
     onStep: (cb: (s: AgentStepEvt) => void) => () => void
+  }
+  skills: {
+    list: () => Promise<Skill[]>
+    create: (
+      name: string,
+      description: string,
+      procedure: string,
+      params: SkillParam[],
+      autopilot: boolean
+    ) => Promise<Skill>
+    update: (id: string, patch: Partial<Skill>) => Promise<void>
+    remove: (id: string) => Promise<void>
+    run: (id: string, params: Record<string, string>) => Promise<SkillRunResult>
+    onUpdated: (cb: () => void) => () => void
+    onStep: (cb: (s: SkillStepEvt) => void) => () => void
   }
   recall: {
     status: () => Promise<{ enabled: boolean; pages: number }>

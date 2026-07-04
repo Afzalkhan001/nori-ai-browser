@@ -4,6 +4,9 @@ import {
   type Agent,
   type AgentSchedule,
   type AgentStepEvt,
+  type Skill,
+  type SkillParam,
+  type SkillStepEvt,
   type AnalyzeChunkEvt,
   type ApprovalRequestEvt,
   type AnalyzeDoneEvt,
@@ -121,6 +124,16 @@ const api: NoriApi = {
       ipcRenderer.invoke(IPC.AgentDismissPending, agentId, pendingId),
     onUpdated: on<void>(IPC.AgentUpdated),
     onStep: on<AgentStepEvt>(IPC.AgentStep)
+  },
+  skills: {
+    list: () => ipcRenderer.invoke(IPC.SkillList),
+    create: (name: string, description: string, procedure: string, params: SkillParam[], autopilot: boolean) =>
+      ipcRenderer.invoke(IPC.SkillCreate, name, description, procedure, params, autopilot),
+    update: (id: string, patch: Partial<Skill>) => ipcRenderer.invoke(IPC.SkillUpdate, id, patch),
+    remove: (id: string) => ipcRenderer.invoke(IPC.SkillRemove, id),
+    run: (id: string, params: Record<string, string>) => ipcRenderer.invoke(IPC.SkillRun, id, params),
+    onUpdated: on<void>(IPC.SkillUpdated),
+    onStep: on<SkillStepEvt>(IPC.SkillStep)
   },
   recall: {
     status: () => ipcRenderer.invoke(IPC.RecallStatus),

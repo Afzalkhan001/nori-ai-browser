@@ -12,7 +12,9 @@ import type {
   CostSummary,
   Mission,
   MissionLogEntry,
-  Playbook
+  Playbook,
+  Skill,
+  SkillParam
 } from '@shared/types'
 
 /**
@@ -48,6 +50,7 @@ interface StoreShape {
   playbooks: Playbook[]
   missions: Mission[]
   agents: Agent[]
+  skills: Skill[]
 }
 
 let data: StoreShape | null = null
@@ -69,6 +72,7 @@ function load(): StoreShape {
     data.playbooks ??= []
     data.missions ??= []
     data.agents ??= []
+    data.skills ??= []
     for (const w of data.watches) {
       w.seenUrls ??= []
       w.unread ??= 0
@@ -83,7 +87,8 @@ function load(): StoreShape {
       artifacts: [],
       playbooks: [],
       missions: [],
-      agents: []
+      agents: [],
+      skills: []
     }
   }
   return data
@@ -336,6 +341,56 @@ export function dismissAgentPending(agentId: string, pendingId: string): void {
   if (!a) return
   for (const run of a.log) run.pending = run.pending.filter((p) => p.id !== pendingId)
   save()
+}
+
+// ----- Skills (teachable, reusable automations) -----
+
+export function listSkills(): Skill[] {
+  return load().skills
+}
+
+export function addSkill(
+  name: string,
+  description: string,
+  procedure: string,
+  params: SkillParam[],
+  autopilot: boolean
+): Skill {
+  const s: Skill = {
+    id: randomUUID(),
+    name: name.trim() || 'Skill',
+    description: description.trim(),
+    procedure: procedure.trim(),
+    params: params.filter((p) => p.name.trim()),
+    autopilot,
+    createdAt: Date.now(),
+    lastRunAt: 0,
+    runCount: 0
+  }
+  load().skills.unshift(s)
+  save()
+  return s
+}
+
+export function updateSkill(id: string, patch: Partial<Skill>): void {
+  const s = load().skills.find((x) => x.id === id)
+  if (s) Object.assign(s, patch)
+  save()
+}
+
+export function removeSkill(id: string): void {
+  const store = load()
+  store.skills = store.skills.filter((s) => s.id !== id)
+  save()
+}
+
+export function touchSkill(id: string): void {
+  const s = load().skills.find((x) => x.id === id)
+  if (s) {
+    s.runCount += 1
+    s.lastRunAt = Date.now()
+    save()
+  }
 }
 
 export function markWatchSeen(id: string): void {

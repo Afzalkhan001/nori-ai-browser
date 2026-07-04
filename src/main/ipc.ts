@@ -11,8 +11,8 @@ import { exportCsv, runExtract, runExtractAuto } from './ai-engine/extract'
 import * as blocker from './blocker'
 import * as recall from './ai-engine/recall'
 import { runMission } from './missions'
-import { runAgent, stopAgentRun } from './ai-engine/agent-run'
-import type { Agent, AgentSchedule } from '@shared/types'
+import { runAgent, runSkill, stopAgentRun } from './ai-engine/agent-run'
+import type { Agent, AgentSchedule, Skill, SkillParam } from '@shared/types'
 import { runXray } from './ai-engine/xray'
 import * as store from './db/store'
 
@@ -135,6 +135,22 @@ export function registerIpc(win: BrowserWindow, tabs: TabManager): void {
     store.dismissAgentPending(agentId, pendingId)
     if (!win.isDestroyed()) win.webContents.send(IPC.AgentUpdated)
   })
+  // ----- Skills (teachable automations) -----
+  ipcMain.handle(IPC.SkillList, () => store.listSkills())
+  ipcMain.handle(
+    IPC.SkillCreate,
+    (_e, name: string, description: string, procedure: string, params: SkillParam[], autopilot: boolean) =>
+      store.addSkill(name, description, procedure, params, autopilot)
+  )
+  ipcMain.handle(IPC.SkillUpdate, (_e, id: string, patch: Partial<Skill>) => {
+    store.updateSkill(id, patch)
+    if (!win.isDestroyed()) win.webContents.send(IPC.SkillUpdated)
+  })
+  ipcMain.handle(IPC.SkillRemove, (_e, id: string) => {
+    store.removeSkill(id)
+    if (!win.isDestroyed()) win.webContents.send(IPC.SkillUpdated)
+  })
+  ipcMain.handle(IPC.SkillRun, (_e, id: string, params: Record<string, string>) => runSkill(id, params))
   ipcMain.handle(IPC.RecallStatus, () => ({ enabled: recall.isEnabled(), pages: recall.recallCount() }))
   ipcMain.handle(IPC.RecallToggle, () => recall.toggle())
   ipcMain.handle(IPC.XrayRun, (_e, tabId: string) => {
