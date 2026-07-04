@@ -10,9 +10,40 @@ const SYSTEM_PROMPT = `You are Nori, an AI assistant built into the Nori product
 Be concise, precise and helpful. Use markdown. When page context is provided, ground
 your answers in it.
 
-You have hands: you control the user's current tab with tools (search_web, navigate,
-read_page, save_pdf, read_form, fill_form, submit_form, and more). Never claim you
-cannot browse or create files.
+You have hands: you control the user's current tab with tools — search_web, navigate,
+read_page, click (press ANY button/link/menu/tab/toggle by describing it), scroll, wait,
+read_form, fill_form, submit_form, find_posts, save_pdf, extract, search_history,
+create_mission, watch_topic. With click + scroll + navigate + read_page you can operate
+ANY website like a person: log in, open menus, fill multi-step flows, add to cart,
+compare options, book, apply, post. Never claim you cannot browse, click, or create files.
+
+DO-ANYTHING DOCTRINE — the user may ask for open-ended or vaguely-phrased things
+("get me a cheap flight to Goa next month", "find a good biryani place nearby and open
+its menu", "sign me up for this", "clean up my feed", "summarize what's on my screen and
+do the obvious next step"). Do NOT stall asking for clarification you can reasonably infer.
+Instead:
+1. Form a concrete plan (a short ordered sequence of tool actions) toward the most
+   sensible interpretation of what they want.
+2. EXECUTE it with the tools — navigate, read_page to see the state, click/scroll/fill to
+   act, read_page again to verify each step worked, and adapt if the page differs from
+   expectations. Loop until the goal is met.
+3. Only ask the user when you genuinely need a personal detail you must not invent (their
+   name, address, payment info, a real preference between equal options) OR before a step
+   that spends money / posts publicly / deletes something.
+4. Then report what you actually did, with the concrete result (what you found, where you
+   got to, links), honestly per the rules below.
+Be resourceful: if one route fails, try another (different search, different site, scroll
+to reveal, re-word the click target). Prefer finishing the task over describing it.
+
+REFUSE ONLY: anything illegal, or offensive-security / intrusion / harm (hacking,
+malware, credential theft, bypassing others' security, surveillance of a person, fraud,
+weapons, etc.). For those, decline briefly and offer a safe alternative. Everything else
+that's a normal person's browsing/productivity task — just do it.
+
+SAFETY ON ACTIONS: clicks that clearly COMMIT — pay, buy, place order, checkout,
+subscribe, donate, delete, or post/publish publicly — pause for the user's approval
+automatically; describe such a click plainly in the target. Never enter the user's real
+personal or payment data unless they gave it to you for this task.
 
 HONESTY — ABSOLUTE RULE: Never claim you did something unless a tool call in THIS
 conversation actually returned success for it. You did NOT post, comment, submit,
@@ -198,7 +229,7 @@ const MAX_TOOL_ROUNDS = 90 // room for a full 10-post batch (≈5 tool calls eac
 
 /** Research-shaped asks get the smart model — tool-use judgment is worth it. */
 function pickTier(text: string): 'fast' | 'smart' {
-  return /\b(pdf|report|research|find|search|list|compare|coverage|sources?|leads?|articles?|news|other|related|more about|extract|track|watch|catch me up|tabs?|comment|reply|post|fill|submit|apply|form|sign up|register|book)\b/i.test(
+  return /\b(pdf|report|research|find|search|list|compare|coverage|sources?|leads?|articles?|news|other|related|more about|extract|track|watch|catch me up|tabs?|comment|reply|post|fill|submit|apply|form|sign ?up|sign ?in|log ?in|register|book|click|open|navigate|go to|buy|order|checkout|add to cart|get me|do it|do this|for me|help me)\b/i.test(
     text
   )
     ? 'smart'
@@ -477,13 +508,21 @@ export async function sendMessage(
             win.webContents.send(IPC.ChatStep, { chatId, label: stepLabel(tc.name, args) })
           }
 
-          // Hard human-in-the-loop gate: nothing submits without explicit approval
+          // Hard human-in-the-loop gate: nothing that commits (submits a form, or
+          // clicks a pay/order/delete/post-type button) runs without explicit approval
           // (unless the user pre-authorized via "Approve all" or the Autopilot setting).
-          if (tc.name === 'submit_form') {
+          const committingClick =
+            tc.name === 'click' &&
+            /\b(buy|pay|order|checkout|purchase|place\s?order|subscribe|donate|confirm|delete|remove|unsubscribe|book\s?now|pay\s?now|send|post|publish)\b/i.test(
+              String(args.target ?? '')
+            )
+          if (tc.name === 'submit_form' || committingClick) {
             const verdict = await requestApproval(
               win,
               chatId,
-              String(args.summary ?? 'Submit this form')
+              committingClick
+                ? `Click “${String(args.target ?? '')}” — this looks like an action that commits (payment, order, post, or deletion).`
+                : String(args.summary ?? 'Submit this form')
             )
             if (verdict !== 'approved') {
               if (verdict === 'denied') userDenied = true

@@ -6,9 +6,10 @@ import type { WatchItem } from '@shared/types'
 import MissionsBlock from './MissionsBlock'
 
 const SUGGESTIONS = [
-  'Summarize this page',
-  'Find more coverage of this story from other outlets',
-  'Where did I read about this before? Check my browsing memory'
+  'Summarize this page and do the obvious next step',
+  'Find the best-rated option here and open it for me',
+  'Research this topic and save it as a PDF',
+  'Where did I read about this before? Check my memory'
 ]
 
 /** Editorial transcript chat — no bubbles, generous whitespace. */
@@ -83,8 +84,10 @@ export default function ChatPanel() {
             Ask anything
             <span className="text-moss-600">.</span>
           </h2>
-          <p className="fade-up-1 mt-3 max-w-[260px] text-[12.5px] leading-relaxed text-ink-500">
-            Nori reads the web with you — summaries, explanations, and code from any page.
+          <p className="fade-up-1 mt-3 max-w-[280px] text-[12.5px] leading-relaxed text-ink-500">
+            Nori reads the web with you — and acts on it. Ask for anything: research, click
+            through any site, fill forms, remember what you read, or just say the goal and
+            watch it work.
           </p>
           <div className="fade-up-2 mt-8">
             {SUGGESTIONS.map((s) => (

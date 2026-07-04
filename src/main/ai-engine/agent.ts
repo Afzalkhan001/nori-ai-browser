@@ -326,6 +326,49 @@ https://www.google.com/maps/search/... Returns the loaded page's url and title.`
         required: ['title', 'markdown']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'click',
+      description: `Click ANY element on the current page by describing it in plain words — a button, link, tab, menu item, toggle, checkbox, "Next", "Add to cart", "Accept all", a result row, etc. This is how you operate a site like a human: open menus, expand sections, advance multi-step flows, dismiss dialogs. After clicking, call read_page to see what changed. For anything that PLACES AN ORDER, PAYS, POSTS, SENDS or DELETES, describe that clearly in "target" — those clicks pause for the user's approval.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          target: {
+            type: 'string',
+            description: 'Plain-language description of the element to click, e.g. "the Sign in button", "Next", "the first search result", "Accept cookies".'
+          }
+        },
+        required: ['target']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'scroll',
+      description: `Scroll the current page. Use to reveal content below the fold, load more items (infinite feeds), or bring a section into view before reading/clicking. Direction "down"/"up"/"top"/"bottom", or pass "toText" to scroll a specific piece of visible text into view.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          direction: { type: 'string', enum: ['down', 'up', 'top', 'bottom'], description: 'Where to scroll' },
+          toText: { type: 'string', description: 'Optional: scroll until this text is visible' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'wait',
+      description: `Pause briefly to let the page finish loading, an animation settle, or new content appear after a click. Give seconds (max 10). Use sparingly — only when the page needs a moment.`,
+      parameters: {
+        type: 'object',
+        properties: { seconds: { type: 'number', description: 'Seconds to wait (1–10)' } },
+        required: ['seconds']
+      }
+    }
   }
 ]
 
@@ -363,6 +406,12 @@ export function stepLabel(name: string, args: Record<string, unknown>): string {
       return 'Waiting for your approval…'
     case 'save_pdf':
       return 'Preparing your PDF…'
+    case 'click':
+      return `Clicking “${String(args.target ?? '').slice(0, 50)}”…`
+    case 'scroll':
+      return 'Scrolling the page…'
+    case 'wait':
+      return 'Waiting a moment…'
     default:
       return 'Working…'
   }
@@ -887,6 +936,68 @@ const FIND_POSTS_SCRIPT = `JSON.stringify((() => {
   return (good.length>=3?good:out).slice(0,15);
 })())`
 
+/** Find the best clickable element matching a plain-language target; mark + scroll it. */
+function clickFindScript(target: string): string {
+  return `JSON.stringify((() => {
+    const want = ${JSON.stringify(target.toLowerCase().trim())};
+    const norm = (s) => (s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+    const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && r.bottom > -50 && r.top < innerHeight + 2500; };
+    const clickable = (el) => {
+      const tag = el.tagName;
+      if (tag === 'BUTTON' || tag === 'A' || tag === 'SUMMARY') return true;
+      if (tag === 'INPUT' && /^(submit|button|checkbox|radio|image)$/i.test(el.type || '')) return true;
+      const role = (el.getAttribute && el.getAttribute('role')) || '';
+      if (/^(button|link|menuitem|menuitemcheckbox|tab|option|checkbox|switch|radio)$/i.test(role)) return true;
+      if (el.getAttribute && el.getAttribute('onclick')) return true;
+      try { if (el.tabIndex >= 0 && /pointer/.test(getComputedStyle(el).cursor)) return true; } catch (e) {}
+      return false;
+    };
+    const labelOf = (el) => norm(el.innerText || el.value || (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder'))) || '');
+    const cands = [];
+    const walk = (root) => { let ns; try { ns = root.querySelectorAll('*') } catch (e) { return } for (const el of ns) { if (clickable(el) && vis(el)) cands.push(el); if (el.shadowRoot) walk(el.shadowRoot); } };
+    walk(document);
+    const score = (el) => {
+      const t = labelOf(el);
+      if (!t) return 0;
+      let s = 0;
+      if (t === want) s = 100;
+      else if (t.startsWith(want) || want.startsWith(t)) s = 80;
+      else if (t.includes(want) || want.includes(t)) s = 60;
+      else { const ww = want.split(' ').filter(Boolean); const overlap = ww.filter((w) => w.length > 1 && t.includes(w)).length; s = ww.length ? (overlap / ww.length) * 45 : 0; }
+      if (t.length < 40) s += 5;
+      if (el.tagName === 'BUTTON' || (el.getAttribute && el.getAttribute('role') === 'button')) s += 4;
+      const r = el.getBoundingClientRect(); if (r.top >= 0 && r.top < innerHeight) s += 3;
+      return s;
+    };
+    let best = null, bestScore = 0;
+    for (const el of cands) { const s = score(el); if (s > bestScore) { bestScore = s; best = el; } }
+    if (!best || bestScore < 20) return { found: false };
+    try { for (const m of document.querySelectorAll('[data-nori-target]')) m.removeAttribute('data-nori-target'); } catch (e) {}
+    best.setAttribute('data-nori-target', '1');
+    try { best.scrollIntoView({ block: 'center' }) } catch (e) {}
+    const label = labelOf(best).slice(0, 60);
+    const committing = /\\b(buy|pay|order|checkout|purchase|place\\s?order|subscribe|donate|confirm|delete|remove|unsubscribe|book\\s?now|pay\\s?now)\\b/i.test(label);
+    return { found: true, label, score: Math.round(bestScore), committing };
+  })())`
+}
+
+/** Scroll the page; optionally until a piece of text is in view. */
+function scrollScript(direction: string, toText?: string): string {
+  return `JSON.stringify((() => {
+    const want = ${JSON.stringify((toText || '').toLowerCase().trim())};
+    if (want) {
+      const all = document.querySelectorAll('body *');
+      for (const el of all) { const t = (el.innerText || '').toLowerCase(); if (t && t.includes(want) && el.getBoundingClientRect().height < 800) { el.scrollIntoView({ block: 'center' }); return { ok: true, to: 'text' }; } }
+      return { ok: false, note: 'text not found on page' };
+    }
+    const dir = ${JSON.stringify(direction || 'down')};
+    if (dir === 'top') window.scrollTo(0, 0);
+    else if (dir === 'bottom') window.scrollTo(0, document.body.scrollHeight);
+    else window.scrollBy(0, Math.round(innerHeight * 0.85) * (dir === 'up' ? -1 : 1));
+    return { ok: true, scrollY: Math.round(window.scrollY) };
+  })())`
+}
+
 function waitForLoad(wc: WebContents, timeoutMs = 12000): Promise<void> {
   return new Promise((resolve) => {
     let settled = false
@@ -1343,6 +1454,57 @@ export async function executeTool(
         const path = await savePdf(title, String(args.markdown ?? ''))
         store.addArtifact({ type: 'pdf', title, meta: { path } })
         return JSON.stringify({ ok: true, savedTo: path })
+      }
+      case 'click': {
+        if (!wc || wc.isDestroyed()) return JSON.stringify({ error: 'No active tab.' })
+        const target = String(args.target ?? '').trim()
+        if (!target) return JSON.stringify({ error: 'Describe what to click.' })
+        const found = JSON.parse(await wc.executeJavaScript(clickFindScript(target), true)) as {
+          found: boolean
+          label?: string
+          committing?: boolean
+        }
+        if (!found.found) {
+          return JSON.stringify({
+            ok: false,
+            error: `Could not find anything matching "${target}" to click. Call read_page to see the real labels, or scroll to reveal it first.`
+          })
+        }
+        await pause(200)
+        const useCdp = cdp.ensureAttached(wc)
+        let clicked = false
+        if (useCdp) clicked = await cdp.clickMarked(wc)
+        if (!clicked) {
+          clicked = await wc
+            .executeJavaScript(
+              `(() => { const el = document.querySelector('[data-nori-target]'); if (!el) return false; el.click(); return true })()`,
+              true
+            )
+            .catch(() => false)
+        }
+        await pause(600)
+        alog('click:', target, '-> label', found.label, 'ok', clicked)
+        return JSON.stringify({
+          ok: clicked,
+          clickedLabel: found.label,
+          note: clicked
+            ? 'Clicked. Call read_page to see what changed (a menu opened, page advanced, etc.).'
+            : 'The click may not have registered — try describing the element differently or read_page first.'
+        })
+      }
+      case 'scroll': {
+        if (!wc || wc.isDestroyed()) return JSON.stringify({ error: 'No active tab.' })
+        const res = await wc.executeJavaScript(
+          scrollScript(String(args.direction ?? 'down'), args.toText ? String(args.toText) : undefined),
+          true
+        )
+        await pause(700) // let lazy content load in
+        return res
+      }
+      case 'wait': {
+        const secs = Math.max(1, Math.min(10, Number(args.seconds) || 2))
+        await pause(secs * 1000)
+        return JSON.stringify({ ok: true, waited: secs })
       }
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}` })
