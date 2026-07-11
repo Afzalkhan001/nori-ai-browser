@@ -4,6 +4,7 @@ import { useChat } from '../store/chat'
 import { Markdown } from '../lib/markdown'
 import type { WatchItem } from '@shared/types'
 import MissionsBlock from './MissionsBlock'
+import ProviderSetup from './ProviderSetup'
 
 const SUGGESTIONS = [
   'Summarize this page and do the obvious next step',
@@ -29,21 +30,10 @@ export default function ChatPanel() {
   }
   const [input, setInput] = useState('')
   const [hasKey, setHasKey] = useState(true)
-  const [keyInput, setKeyInput] = useState('')
-  const [savingKey, setSavingKey] = useState(false)
+  const [showConfig, setShowConfig] = useState(false)
   const [watches, setWatches] = useState<WatchItem[]>([])
   const [autopilot, setAutopilot] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
-
-  const saveKey = async () => {
-    const k = keyInput.trim()
-    if (!k || savingKey) return
-    setSavingKey(true)
-    const status = await window.nori.ai.setKey(k)
-    setHasKey(status.hasKey)
-    setKeyInput('')
-    setSavingKey(false)
-  }
 
   useEffect(() => {
     window.nori.ai.getStatus().then((s) => setHasKey(s.hasKey))
@@ -143,44 +133,23 @@ export default function ChatPanel() {
             </div>
           )}
           <MissionsBlock />
-          {!hasKey && (
-            <div className="fade-up-3 card mt-6 rounded-xl p-4">
-              <div className="micro-label mb-1.5 !text-moss-700">Connect OpenAI</div>
-              <p className="mb-3 text-[11.5px] leading-relaxed text-ink-500">
-                Paste your OpenAI API key to activate Nori. It’s stored locally on this device
-                and never leaves it except to call OpenAI.
-              </p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="password"
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && saveKey()}
-                  placeholder="sk-…"
-                  spellCheck={false}
-                  className="hairline min-w-0 flex-1 rounded-lg border bg-transparent px-3 py-2 text-[12px] text-ink-900 outline-none placeholder:text-ink-300 focus:border-moss-600/50"
-                />
-                <button
-                  onClick={saveKey}
-                  disabled={!keyInput.trim() || savingKey}
-                  className={`shrink-0 rounded-lg px-3.5 py-2 text-[12px] transition-all duration-200 ${
-                    keyInput.trim() && !savingKey
-                      ? 'bg-moss-700 text-porcelain-50 hover:bg-moss-600 active:scale-[0.96]'
-                      : 'bg-ink-900/[0.05] text-ink-300'
-                  }`}
-                >
-                  {savingKey ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-              <a
-                href="https://platform.openai.com/api-keys"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2.5 inline-block text-[10.5px] text-ink-400 transition-colors hover:text-moss-700"
-              >
-                Get a key from platform.openai.com →
-              </a>
+          {(!hasKey || showConfig) && (
+            <div className="fade-up-3 mt-6">
+              <ProviderSetup
+                onSaved={(hk) => {
+                  setHasKey(hk)
+                  setShowConfig(false)
+                }}
+              />
             </div>
+          )}
+          {hasKey && !showConfig && (
+            <button
+              onClick={() => setShowConfig(true)}
+              className="fade-up-3 mt-6 text-[11px] text-ink-400 transition-colors hover:text-moss-700"
+            >
+              Configure AI provider →
+            </button>
           )}
         </div>
       ) : (

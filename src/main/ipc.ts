@@ -1,7 +1,8 @@
 import { BrowserWindow, ipcMain, shell } from 'electron'
 import { IPC, type WebAreaBounds } from '@shared/types'
 import type { TabManager } from './tabs'
-import { hasKey, setApiKey } from './ai-engine/openai'
+import { aiConfig, hasKey, resetClient, setApiKey } from './ai-engine/openai'
+import type { AiProviderInput } from '@shared/types'
 import { resolveApproval, sendMessage } from './ai-engine/chat'
 import { readerExtract, scrapePage, snapshotToContext } from './ai-engine/scrape'
 import { getFacts, synthesize } from './ai-engine/analyze'
@@ -23,6 +24,30 @@ export function registerIpc(win: BrowserWindow, tabs: TabManager): void {
     const k = String(key ?? '').trim()
     store.setSetting('openaiApiKey', k) // persisted (userData); survives restarts
     setApiKey(k)
+    return { hasKey: hasKey() }
+  })
+  ipcMain.handle(IPC.AiGetConfig, () => {
+    const c = aiConfig()
+    return {
+      provider: c.provider,
+      baseUrl: c.baseURL ?? '',
+      fastModel: c.fast,
+      smartModel: c.smart,
+      embedModel: c.embed,
+      hasKey: hasKey()
+    }
+  })
+  ipcMain.handle(IPC.AiSetProvider, (_e, cfg: AiProviderInput) => {
+    store.setSetting('aiProvider', cfg.provider || 'openai')
+    store.setSetting('aiBaseUrl', cfg.baseUrl ?? '')
+    store.setSetting('aiFastModel', cfg.fastModel ?? '')
+    store.setSetting('aiSmartModel', cfg.smartModel ?? '')
+    store.setSetting('aiEmbedModel', cfg.embedModel ?? '')
+    if (typeof cfg.apiKey === 'string' && cfg.apiKey.trim()) {
+      store.setSetting('openaiApiKey', cfg.apiKey.trim())
+      setApiKey(cfg.apiKey.trim())
+    }
+    resetClient() // rebuild the client with the new base URL / key on next call
     return { hasKey: hasKey() }
   })
   ipcMain.handle(IPC.ChatSend, async (_e, chatId: string, text: string) => {

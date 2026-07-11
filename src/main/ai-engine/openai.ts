@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { MODELS, type ModelTier } from './cost'
+import * as store from '../db/store'
 
 let client: OpenAI | null = null
 // A key entered at runtime (settings UI) takes precedence over the .env file, so
@@ -8,7 +9,38 @@ let client: OpenAI | null = null
 let runtimeKey: string | null = null
 
 function resolveKey(): string | undefined {
-  return runtimeKey || process.env.OPENAI_API_KEY
+  return runtimeKey || store.getSetting('openaiApiKey') || process.env.OPENAI_API_KEY || undefined
+}
+
+/**
+ * Nori is provider-agnostic: any OpenAI-compatible endpoint (OpenAI, OpenRouter,
+ * Groq, Gemini, local Ollama) works by pointing the client at a base URL and
+ * naming that provider's models. Config lives in settings; empty = OpenAI.
+ */
+export function aiConfig(): {
+  provider: string
+  baseURL?: string
+  fast: string
+  smart: string
+  embed: string
+  headers?: Record<string, string>
+} {
+  const provider = store.getSetting('aiProvider') || 'openai'
+  const baseURL = store.getSetting('aiBaseUrl') || undefined
+  const fast = store.getSetting('aiFastModel') || MODELS.fast
+  const smart = store.getSetting('aiSmartModel') || MODELS.smart
+  const embed = store.getSetting('aiEmbedModel') || 'text-embedding-3-small'
+  // OpenRouter uses these for attribution/ranking; harmless elsewhere.
+  const headers =
+    provider === 'openrouter'
+      ? { 'HTTP-Referer': 'https://github.com/Afzalkhan001/nori-ai-browser', 'X-Title': 'Nori' }
+      : undefined
+  return { provider, baseURL, fast, smart, embed, headers }
+}
+
+/** Drop the cached client so the next call rebuilds it with new key/base URL. */
+export function resetClient(): void {
+  client = null
 }
 
 export function setApiKey(key: string): void {
@@ -17,15 +49,17 @@ export function setApiKey(key: string): void {
 }
 
 export function hasKey(): boolean {
-  return Boolean(resolveKey())
+  // Local providers (Ollama) need no key; a base URL is enough to be "configured".
+  return Boolean(resolveKey()) || store.getSetting('aiProvider') === 'ollama'
 }
 
 function getClient(): OpenAI {
   if (!client) {
-    const apiKey = resolveKey()
+    const cfg = aiConfig()
+    const apiKey = resolveKey() || (cfg.provider === 'ollama' ? 'ollama' : undefined)
     if (!apiKey)
-      throw new Error('No OpenAI API key set. Add one in Nori’s settings, or put OPENAI_API_KEY in a .env file.')
-    client = new OpenAI({ apiKey })
+      throw new Error('No AI API key set. Add one in Nori’s settings (OpenAI, OpenRouter, Groq, Gemini…).')
+    client = new OpenAI({ apiKey, baseURL: cfg.baseURL, defaultHeaders: cfg.headers })
   }
   return client
 }
@@ -99,7 +133,7 @@ export async function embed(
 ): Promise<{ vector: number[]; inputTokens: number }> {
   const res = await withRetry(() =>
     getClient().embeddings.create({
-      model: 'text-embedding-3-small',
+      model: aiConfig().embed,
       input: input.slice(0, 24000)
     })
   )
@@ -112,7 +146,7 @@ export async function completeChat(
   messages: ChatTurn[],
   json = false
 ): Promise<{ text: string; inputTokens: number; outputTokens: number; model: string }> {
-  const model = MODELS[tier]
+  const model = aiConfig()[tier]
   const res = await withRetry(() =>
     getClient().chat.completions.create({
       model,
@@ -135,7 +169,7 @@ export async function streamChat(
   signal?: AbortSignal,
   tools?: ToolDef[]
 ): Promise<StreamResult> {
-  const model = MODELS[tier]
+  const model = aiConfig()[tier]
   let emitted = false // once text reached the UI we can no longer safely restart
 
   const consume = async (): Promise<StreamResult> => {

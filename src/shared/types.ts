@@ -43,6 +43,25 @@ export interface AiStatus {
   hasKey: boolean
 }
 
+/** Provider config for any OpenAI-compatible endpoint (OpenAI, OpenRouter, Groq…). */
+export interface AiProviderConfig {
+  provider: string
+  baseUrl: string
+  fastModel: string
+  smartModel: string
+  embedModel: string
+  hasKey: boolean
+}
+
+export interface AiProviderInput {
+  provider: string
+  apiKey?: string
+  baseUrl?: string
+  fastModel?: string
+  smartModel?: string
+  embedModel?: string
+}
+
 export interface ChatChunk {
   chatId: string
   messageId: string
@@ -293,6 +312,8 @@ export const IPC = {
   WindowIsMaximized: 'window:isMaximized',
   AiGetStatus: 'ai:getStatus',
   AiSetKey: 'ai:setKey',
+  AiGetConfig: 'ai:getConfig',
+  AiSetProvider: 'ai:setProvider',
   ChatSend: 'chat:send',
   ChatGetMessages: 'chat:getMessages',
   ChatClear: 'chat:clear',
@@ -376,6 +397,8 @@ export interface NoriApi {
   ai: {
     getStatus: () => Promise<AiStatus>
     setKey: (key: string) => Promise<AiStatus>
+    getConfig: () => Promise<AiProviderConfig>
+    setProvider: (cfg: AiProviderInput) => Promise<AiStatus>
     sendMessage: (chatId: string, text: string) => Promise<{ chatId: string; messageId: string }>
     getMessages: (chatId: string) => Promise<ChatMessage[]>
     clearChat: (chatId: string) => Promise<void>

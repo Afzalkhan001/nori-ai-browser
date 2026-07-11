@@ -21,7 +21,9 @@ export function estimateTokens(text: string): number {
 }
 
 export function costUsd(model: string, inputTokens: number, outputTokens: number): number {
-  const p = PRICING[model] ?? PRICING['gpt-4o-mini']
+  // Unknown/free models (OpenRouter :free, local Ollama, etc.) carry no bill.
+  const p = PRICING[model]
+  if (!p) return 0
   return (inputTokens * p.in + outputTokens * p.out) / 1_000_000
 }
 

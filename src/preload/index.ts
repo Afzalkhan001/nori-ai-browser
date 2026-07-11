@@ -4,6 +4,7 @@ import {
   type Agent,
   type AgentSchedule,
   type AgentStepEvt,
+  type AiProviderInput,
   type Skill,
   type SkillParam,
   type SkillStepEvt,
@@ -34,6 +35,8 @@ const api: NoriApi = {
   ai: {
     getStatus: () => ipcRenderer.invoke(IPC.AiGetStatus),
     setKey: (key: string) => ipcRenderer.invoke(IPC.AiSetKey, key),
+    getConfig: () => ipcRenderer.invoke(IPC.AiGetConfig),
+    setProvider: (cfg: AiProviderInput) => ipcRenderer.invoke(IPC.AiSetProvider, cfg),
     sendMessage: (chatId: string, text: string) =>
       ipcRenderer.invoke(IPC.ChatSend, chatId, text),
     getMessages: (chatId: string) => ipcRenderer.invoke(IPC.ChatGetMessages, chatId),
