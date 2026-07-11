@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Nori — AI in your browser",
+  "version": "0.1.0",
+  "description": "The AI that reads the web with you — chat, analyze, and act on any page. Local, private, bring your own key.",
+  "action": { "default_title": "Open Nori" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "icons": { "16": "icon.png", "48": "icon.png", "128": "icon.png" }
+}
