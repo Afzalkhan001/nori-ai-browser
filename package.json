@@ -1,6 +1,6 @@
 {
   "name": "nori",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Nori — the AI-native productivity browser",
   "main": "./out/main/index.js",
   "author": "Afzal Khan",
