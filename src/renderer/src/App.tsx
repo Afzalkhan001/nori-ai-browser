@@ -4,6 +4,7 @@ import AddressBar from './components/AddressBar'
 import Sidebar from './components/Sidebar'
 import WebArea from './components/WebArea'
 import CommandPalette, { usePalette } from './components/CommandPalette'
+import WelcomeModal from './components/WelcomeModal'
 import { useBrowser } from './store/browser'
 
 export default function App() {
@@ -64,6 +65,7 @@ export default function App() {
         <Sidebar />
       </div>
       <CommandPalette />
+      <WelcomeModal />
     </div>
   )
 }
